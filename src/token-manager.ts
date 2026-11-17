@@ -33,6 +33,8 @@ export interface TokenSink {
 export interface TokenManagerOptions {
   platformBaseUrl: string
   deviceName: string
+  /** 钥匙串账户名；缺省按平台地址。同一台电脑多个团队 profile 登录不同成员时必须各不相同。 */
+  keychainAccount?: string
   fetch: FetchLike
   store: SecretStore
   sink: TokenSink
@@ -73,7 +75,7 @@ export class TokenManager {
   private starting: Promise<void> | undefined
 
   constructor(private readonly options: TokenManagerOptions) {
-    this.account = accountFor(options.platformBaseUrl)
+    this.account = options.keychainAccount ?? accountFor(options.platformBaseUrl)
     this.now = options.now ?? Date.now
     this.ratio = options.refreshRatio ?? 0.8
     this.autoLogin = options.autoLogin ?? true

@@ -33,6 +33,11 @@ export interface AuthPluginConfig {
   platformBaseUrl?: string
   /** 设备显示名，缺省为主机名。 */
   deviceName?: string
+  /**
+   * 刷新凭证在系统钥匙串里的账户名，缺省按平台地址。安装器按 profile 写入，避免同一台电脑上
+   * 多个团队 profile（登录不同成员）共用同一份刷新凭证而互相冒用。只允许字母、数字和 . _ : @ / - 。
+   */
+  keychainAccount?: string
   /** 访问令牌写入的凭证引用，必须与 provider 的 apiKeyEnv 一致，默认 HARNESS_PLATFORM_TOKEN。 */
   apiKeyEnv?: string
   /** 在访问令牌生命周期的这个比例处刷新，默认 0.8。 */
@@ -77,6 +82,7 @@ export function applyPlugin(
   const manager = new TokenManager({
     platformBaseUrl,
     deviceName: config.deviceName ?? `${hostname()} (dsh)`,
+    ...(config.keychainAccount ? { keychainAccount: config.keychainAccount } : {}),
     fetch: deps.fetch ?? ((input, init) => fetch(input, init)),
     store: deps.store ?? createSystemSecretStore(),
     sink: createSink(ctx, config.apiKeyEnv ?? PLATFORM_API_KEY_ENV),

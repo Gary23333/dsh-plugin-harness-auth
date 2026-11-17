@@ -149,6 +149,30 @@ describe('TokenManager 设备授权登录', () => {
     h.manager.stop()
   })
 
+  it('指定 keychainAccount 时不读别的 profile 的刷新凭证，各自独立登录', async () => {
+    const store = new MemoryStore()
+    seed(store, 'refresh-of-member-a', Date.now())
+    const h = build(
+      (path, _body, n) => {
+        if (path === '/auth/device/start') {
+          return json(200, { device_code: 'dev-b', user_code: 'BBBB-0002', verification_uri: `${BASE}/device`, expires_in_seconds: 600, interval_seconds: 5 })
+        }
+        if (path === '/auth/device/poll') return n === 1 ? json(200, { status: 'pending' }) : json(200, { status: 'approved', ...grant(9) })
+        return json(404, {})
+      },
+      { keychainAccount: 'platform.test:profile-bbbb' },
+      store,
+    )
+    h.manager.start()
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(await h.manager.whenReady()).toBe('ready')
+    // 没有拿 A 的刷新凭证去刷新，而是走了自己的设备授权
+    expect(h.calls.some((c) => c.path === '/auth/refresh')).toBe(false)
+    expect(h.announced).toEqual(['BBBB-0002'])
+    expect(decodeStored(store.data.get('platform.test:profile-bbbb')!)?.refreshToken).toBe('refresh-9')
+    expect(decodeStored(store.data.get(ACCOUNT)!)?.refreshToken).toBe('refresh-of-member-a')
+  })
+
   it('用户拒绝授权 → unavailable，不写任何凭证', async () => {
     const h = build((path) => {
       if (path === '/auth/device/start') {
